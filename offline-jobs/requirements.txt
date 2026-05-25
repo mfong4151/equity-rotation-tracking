@@ -1,0 +1,2 @@
+# Shared package (provides SQLAlchemy, psycopg, requests, dotenv transitively)
+-e ../shared
