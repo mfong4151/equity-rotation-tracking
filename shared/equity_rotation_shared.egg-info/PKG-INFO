@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: equity-rotation-shared
+Version: 0.1.0
+Summary: Shared models, DB engine, and Polygon ingestion helpers for equity-rotation-tracking.
+Requires-Python: >=3.10
+Requires-Dist: SQLAlchemy>=2.0
+Requires-Dist: psycopg[binary]>=3.2
+Requires-Dist: requests>=2.32
+Requires-Dist: python-dotenv>=1.0
