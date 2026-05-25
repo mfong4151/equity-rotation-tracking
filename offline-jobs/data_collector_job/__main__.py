@@ -25,6 +25,14 @@ REQUEST_SLEEP_SECONDS = 12  # Polygon free tier: ~5 req/min.
 
 
 def main() -> int:
+    """Backfill daily OHLC bars for every active ticker.
+
+    Loads env, reads the active rows from the tickers table, and calls
+    ensure_ticker_tracked on each — which fetches any missing bars from
+    Polygon and upserts them into stock_data. Sleeps REQUEST_SLEEP_SECONDS
+    between tickers to stay under the Polygon free-tier rate limit.
+    Raises RuntimeError if no active tickers exist.
+    """
     load_env()
     timeframe = os.getenv("COLLECTOR_TIMEFRAME", DEFAULT_TIMEFRAME)
     engine = get_engine()

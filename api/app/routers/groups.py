@@ -8,40 +8,24 @@ metrics yet.
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, and_, select
+
+from equity_rotation_shared.models import ratios as ratios_tbl, stock_data
 
 from ..deps import db_engine
 from ..schemas import GroupResponse, RatioPoint, RatioSeries
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
+# Two aliases of stock_data so the numerator and denominator legs of every
+# ratio can be joined in a single query.
+_num_bars = stock_data.alias("n")
+_den_bars = stock_data.alias("d")
 
-# Single query: every (ratio, date) point for ratios in the group within the
-# requested window. Grouped in Python afterward.
-_GROUP_QUERY = text(
-    """
-    SELECT
-        r.id            AS ratio_id,
-        r.numerator     AS numerator,
-        r.denominator   AS denominator,
-        n.price_timestamp::date AS bar_date,
-        n.close         AS num_close,
-        d.close         AS den_close
-    FROM ratios r
-    JOIN stock_data n
-      ON n.ticker_symbol = r.numerator
-     AND n.timeframe     = '1d'
-    JOIN stock_data d
-      ON d.ticker_symbol = r.denominator
-     AND d.timeframe     = '1d'
-     AND d.price_timestamp = n.price_timestamp
-    WHERE r.group_name = :group_name
-      AND n.price_timestamp >= (NOW() - make_interval(days => :days))
-    ORDER BY r.id, n.price_timestamp
-    """
-)
+_TIMEFRAME = "1d"
 
 
 @router.get("/{group_name}", response_model=GroupResponse)
@@ -50,10 +34,42 @@ def batch_get_group(
     days: int = Query(default=120, ge=1, le=365),
     engine: Engine = Depends(db_engine),
 ) -> GroupResponse:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    stmt = (
+        select(
+            ratios_tbl.c.id.label("ratio_id"),
+            ratios_tbl.c.numerator,
+            ratios_tbl.c.denominator,
+            _num_bars.c.price_timestamp.label("bar_ts"),
+            _num_bars.c.close.label("num_close"),
+            _den_bars.c.close.label("den_close"),
+        )
+        .select_from(
+            ratios_tbl.join(
+                _num_bars,
+                and_(
+                    _num_bars.c.ticker_symbol == ratios_tbl.c.numerator,
+                    _num_bars.c.timeframe == _TIMEFRAME,
+                ),
+            ).join(
+                _den_bars,
+                and_(
+                    _den_bars.c.ticker_symbol == ratios_tbl.c.denominator,
+                    _den_bars.c.timeframe == _TIMEFRAME,
+                    _den_bars.c.price_timestamp == _num_bars.c.price_timestamp,
+                ),
+            )
+        )
+        .where(
+            ratios_tbl.c.group_name == group_name,
+            _num_bars.c.price_timestamp >= cutoff,
+        )
+        .order_by(ratios_tbl.c.id, _num_bars.c.price_timestamp)
+    )
+
     with engine.connect() as conn:
-        rows = conn.execute(
-            _GROUP_QUERY, {"group_name": group_name, "days": days}
-        ).all()
+        rows = conn.execute(stmt).all()
 
     if not rows:
         raise HTTPException(
@@ -75,7 +91,7 @@ def batch_get_group(
             continue
         points_by_ratio[rid].append(
             RatioPoint(
-                date=row.bar_date.isoformat(),
+                date=row.bar_ts.date().isoformat(),
                 numerator_close=float(row.num_close),
                 denominator_close=den,
                 ratio=float(row.num_close) / den,

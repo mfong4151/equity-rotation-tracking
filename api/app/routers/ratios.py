@@ -24,7 +24,7 @@ router = APIRouter(prefix="/ratios", tags=["ratios"])
 def add_ratio(
     payload: AddRatioRequest, engine: Engine = Depends(db_engine)
 ) -> RatioResponse:
-    if payload.numerator == payload.denominator:
+    if payload.numerator_stock == payload.denominator_stock:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="numerator and denominator must differ",
@@ -33,8 +33,8 @@ def add_ratio(
     # Ensure both tickers are tracked + backfilled. Idempotent for tickers that
     # already exist and are current.
     try:
-        ensure_ticker_tracked(engine, payload.numerator)
-        ensure_ticker_tracked(engine, payload.denominator)
+        ensure_ticker_tracked(engine, payload.numerator_stock)
+        ensure_ticker_tracked(engine, payload.denominator_stock)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -44,8 +44,8 @@ def add_ratio(
     stmt = (
         ratios_tbl.insert()
         .values(
-            numerator=payload.numerator,
-            denominator=payload.denominator,
+            numerator=payload.numerator_stock,
+            denominator=payload.denominator_stock,
             group_name=payload.group_name,
         )
         .returning(

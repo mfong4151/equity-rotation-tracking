@@ -15,6 +15,13 @@ from equity_rotation_shared.models import stock_data
 
 
 def main() -> int:
+    """Delete stock_data bars older than CLEANUP_RETENTION_DAYS.
+
+    Reads the retention window from the env (default 365 days), deletes every
+    row in stock_data with a price_timestamp older than that cutoff, and prints
+    a one-line summary. Run nightly after the collector so the table stays
+    bounded to roughly one rolling year per ticker.
+    """
     load_env()
     retention_days = int(os.getenv("CLEANUP_RETENTION_DAYS", "365"))
     engine = get_engine()

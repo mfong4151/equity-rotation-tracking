@@ -27,11 +27,11 @@ class TickerResponse(BaseModel):
 # --- ratios ---
 
 class AddRatioRequest(BaseModel):
-    numerator: str = Field(..., min_length=1, max_length=16)
-    denominator: str = Field(..., min_length=1, max_length=16)
+    numerator_stock: str = Field(..., min_length=1, max_length=16)
+    denominator_stock: str = Field(..., min_length=1, max_length=16)
     group_name: str | None = Field(default=None, max_length=64)
 
-    @field_validator("numerator", "denominator")
+    @field_validator("numerator_stock", "denominator_stock")
     @classmethod
     def upper(cls, v: str) -> str:
         return v.strip().upper()
