@@ -24,6 +24,36 @@ class TickerResponse(BaseModel):
     latest_bar: str | None
 
 
+class BatchAddTickerRequest(BaseModel):
+    ticker_symbols: list[str] = Field(..., min_length=1, max_length=100)
+
+    @field_validator("ticker_symbols")
+    @classmethod
+    def normalize(cls, v: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for s in v:
+            sym = s.strip().upper()
+            if sym and sym not in seen:
+                seen.add(sym)
+                out.append(sym)
+        if not out:
+            raise ValueError("ticker_symbols must contain at least one non-empty symbol")
+        return out
+
+
+class BatchTickerResult(BaseModel):
+    ticker_symbol: str
+    ok: bool
+    bars_added: int | None = None
+    latest_bar: str | None = None
+    error: str | None = None
+
+
+class BatchAddTickerResponse(BaseModel):
+    results: list[BatchTickerResult]
+
+
 # --- ratios ---
 
 class AddRatioRequest(BaseModel):
@@ -66,6 +96,7 @@ class RatioSeries(BaseModel):
     id: int
     numerator: str
     denominator: str
+    pinned: bool = False
     points: list[RatioPoint]
 
 
@@ -73,3 +104,24 @@ class GroupResponse(BaseModel):
     group: str
     days: int
     ratios: list[RatioSeries]
+
+
+class RenameGroupRequest(BaseModel):
+    new_name: str = Field(..., min_length=1, max_length=64)
+
+
+class ReorderGroupRequest(BaseModel):
+    ratio_ids: list[int] = Field(..., min_length=1)
+
+
+class PinRatioRequest(BaseModel):
+    pinned: bool
+
+
+class VisibilityRequest(BaseModel):
+    hidden: bool
+
+
+class GroupListItem(BaseModel):
+    name: str
+    hidden: bool

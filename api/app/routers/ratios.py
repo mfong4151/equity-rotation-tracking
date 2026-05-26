@@ -7,15 +7,15 @@ tickers.py applies if latency becomes an issue.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import Engine, delete, select
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import Engine, delete, update
 from sqlalchemy.exc import IntegrityError
 
 from equity_rotation_shared.models import ratios as ratios_tbl
 from equity_rotation_shared.polygon import ensure_ticker_tracked
 
 from ..deps import db_engine
-from ..schemas import AddRatioRequest, RatioResponse
+from ..schemas import AddRatioRequest, PinRatioRequest, RatioResponse
 
 router = APIRouter(prefix="/ratios", tags=["ratios"])
 
@@ -83,3 +83,22 @@ def delete_ratio(ratio_id: int, engine: Engine = Depends(db_engine)) -> None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Unknown ratio id {ratio_id}"
         )
+
+
+@router.patch("/{ratio_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
+def set_pinned(
+    ratio_id: int,
+    payload: PinRatioRequest,
+    engine: Engine = Depends(db_engine),
+) -> Response:
+    with engine.begin() as conn:
+        result = conn.execute(
+            update(ratios_tbl)
+            .where(ratios_tbl.c.id == ratio_id)
+            .values(pinned=payload.pinned)
+        )
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Unknown ratio id {ratio_id}"
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

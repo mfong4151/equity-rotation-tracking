@@ -15,6 +15,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     ForeignKey,
+    Integer,
     MetaData,
     Numeric,
     PrimaryKeyConstraint,
@@ -72,7 +73,16 @@ ratios = Table(
         nullable=False,
     ),
     Column("group_name", Text),
+    Column("pinned", Boolean, nullable=False, server_default="false"),
+    Column("display_order", Integer, nullable=False, server_default="0"),
     Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("numerator <> denominator", name="ratios_distinct_legs"),
     UniqueConstraint("numerator", "denominator", "group_name", name="ratios_unique_in_group"),
+)
+
+group_settings = Table(
+    "group_settings",
+    metadata,
+    Column("name", Text, primary_key=True),
+    Column("hidden", Boolean, nullable=False, server_default="false"),
 )

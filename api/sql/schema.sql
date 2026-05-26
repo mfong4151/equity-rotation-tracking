@@ -66,6 +66,11 @@ CREATE TABLE IF NOT EXISTS ratios (
     numerator    TEXT        NOT NULL REFERENCES tickers(ticker_symbol) ON DELETE CASCADE,
     denominator  TEXT        NOT NULL REFERENCES tickers(ticker_symbol) ON DELETE CASCADE,
     group_name   TEXT,
+    -- Per-group UI state. `pinned` rows sort to the top of their group;
+    -- `display_order` is the user's explicit drag-and-drop ordering within
+    -- each pinned/unpinned bucket. Defaults preserve insertion order via id.
+    pinned        BOOLEAN     NOT NULL DEFAULT FALSE,
+    display_order INTEGER     NOT NULL DEFAULT 0,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT ratios_distinct_legs CHECK (numerator <> denominator),
@@ -73,3 +78,20 @@ CREATE TABLE IF NOT EXISTS ratios (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ratios_group ON ratios(group_name);
+CREATE INDEX IF NOT EXISTS idx_ratios_group_order
+    ON ratios(group_name, pinned DESC, display_order ASC, id ASC);
+
+-- Idempotent migration for existing installations.
+ALTER TABLE ratios ADD COLUMN IF NOT EXISTS pinned        BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ratios ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 0;
+
+
+-- =============================================================================
+-- group_settings: per-group UI metadata (hidden, ...). Group identity is the
+-- free-form ratios.group_name string, so this table is keyed by name. Rows
+-- are upserted lazily when the user changes a setting; absence means defaults.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS group_settings (
+    name   TEXT       PRIMARY KEY,
+    hidden BOOLEAN    NOT NULL DEFAULT FALSE
+);
