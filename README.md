@@ -52,7 +52,15 @@ npm run dev
 Frontend is now at <http://localhost:5173>. It expects the API at
 <http://localhost:8000> (override via `VITE_API_BASE_URL` in `frontend/.env`).
 
-## Offline jobs (optional, manual run)
+## Offline jobs (scheduled via cron)
+
+`data_collector_job` (nightly Polygon pull) and `data_cleanup_job` (prune old
+rows) are intended to be run automatically on a schedule via cron, not by
+hand. `offline-jobs/run_daily.sh` is the entrypoint: it activates the venv,
+runs the collector, then the cleanup, and writes logs to
+`offline-jobs/logs/`.
+
+One-time setup:
 
 ```bash
 cd offline-jobs
@@ -60,12 +68,32 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e ../shared
-
-# nightly data pull
-python -m data_collector_job
-# prune old rows
-python -m data_cleanup_job
+cp .env.example .env   # set POLYGON_API_KEY + DATABASE_URL
 ```
+
+Smoke test (runs both jobs once):
+
+```bash
+./run_daily.sh
+tail logs/run_daily.log logs/collector.log logs/cleanup.log
+```
+
+Schedule it — `crontab -e` and append (Mon–Fri at 18:30 local, post-close):
+
+```cron
+MAILTO=""
+30 18 * * 1-5 /home/mfong415/projects/equity-analysis-tools/equity-rotation-tracking/offline-jobs/run_daily.sh
+```
+
+Verify:
+
+```bash
+crontab -l
+tail -f offline-jobs/logs/run_daily.log
+```
+
+The Pi deployment guide ([api/README.md](api/README.md)) covers the same
+flow with paths assumed to live under the repo checkout.
 
 ---
 
