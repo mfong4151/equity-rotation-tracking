@@ -4,6 +4,14 @@ Local dev quickstart for the API (FastAPI) and frontend (Vite + React).
 
 For Raspberry Pi / systemd deployment, see [api/README.md](api/README.md).
 
+## Roadmap / TODO
+
+- **Mobile / off-network access.** The current Pi deployment is local/LAN only
+  (reachable at `http://<pi-ip>:8000`). On-LAN phones already work; supporting
+  phones off the home network is future work — likely **Tailscale** (private, no
+  domain/open ports) or a Cloudflare Tunnel + Access for a public URL. Tracked
+  in [#2](https://github.com/mfong4151/equity-rotation-tracking/issues/2).
+
 ## Prerequisites
 
 - Python 3.11+
