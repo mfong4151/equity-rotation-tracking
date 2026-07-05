@@ -10,7 +10,7 @@ For Raspberry Pi / systemd deployment, see [api/README.md](api/README.md).
   (reachable at `http://<pi-ip>:8000`). On-LAN phones already work; supporting
   phones off the home network is future work — likely **Tailscale** (private, no
   domain/open ports) or a Cloudflare Tunnel + Access for a public URL. Tracked
-  in the issue tracker.
+  in [#2](https://github.com/mfong4151/equity-rotation-tracking/issues/2).
 
 ## Prerequisites
 
